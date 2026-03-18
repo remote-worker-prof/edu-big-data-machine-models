@@ -1,9 +1,8 @@
-"""Утилиты для ЛР 03 по переобучению, validation и тюнингу.
+"""Утилиты для ЛР 03 по переобучению, validation и честному тюнингу.
 
-Модуль продолжает workflow ЛР 01: берет candidate feature set, делит данные
-на train/validation/test и помогает честно сравнивать baseline и tuned-модели.
-Главная методическая цель: показать студенту, почему train-метрика не равна
-качеству на новых данных и как улучшать модель без утечки информации.
+ЛР 03 продолжает курс после ЛР 01, но принимает все решения заново
+на текущем split train/validation/test. Candidate feature set из ЛР 01
+используются как гипотезы, а не как готовый победитель.
 """
 
 from __future__ import annotations
@@ -108,27 +107,8 @@ def infer_feature_types(x: pd.DataFrame) -> Tuple[List[str], List[str]]:
     return numeric_features, categorical_features
 
 
-def infer_category_levels(x: pd.DataFrame) -> Dict[str, Tuple[object, ...]]:
-    """Фиксирует набор категорий для object-колонок.
-
-    Это помогает сохранить стабильные имена one-hot колонок между фолдами
-    в GridSearchCV и не потерять признаки, выбранные в ЛР 01.
-    """
-
-    _, categorical_features = infer_feature_types(x)
-    levels: Dict[str, Tuple[object, ...]] = {}
-    for col in categorical_features:
-        values = pd.Series(x[col]).dropna().tolist()
-        unique_values = tuple(dict.fromkeys(values).keys())
-        levels[col] = unique_values
-    return levels
-
-
-def build_preprocessor(
-    x: pd.DataFrame,
-    category_levels: Dict[str, Tuple[object, ...]] | None = None,
-) -> ColumnTransformer:
-    """Строит единый препроцессор для train-таблицы."""
+def build_preprocessor(x: pd.DataFrame) -> ColumnTransformer:
+    """Строит единый препроцессор, который обучается на текущем fit."""
 
     numeric_features, categorical_features = infer_feature_types(x)
 
@@ -139,17 +119,16 @@ def build_preprocessor(
         ]
     )
 
-    encoder_kwargs = {
-        "handle_unknown": "ignore",
-        "sparse_output": True,
-    }
-    if category_levels is not None and categorical_features:
-        encoder_kwargs["categories"] = [list(category_levels[col]) for col in categorical_features]
-
     categorical_transformer = Pipeline(
         steps=[
             ("imputer", SimpleImputer(strategy="most_frequent")),
-            ("encoder", OneHotEncoder(**encoder_kwargs)),
+            (
+                "encoder",
+                OneHotEncoder(
+                    handle_unknown="ignore",
+                    sparse_output=True,
+                ),
+            ),
         ]
     )
 
@@ -169,42 +148,6 @@ def to_dense(matrix):
     return np.asarray(matrix)
 
 
-def select_columns(matrix, column_indices: Sequence[int]):
-    """Выбирает колонки из dense/sparse-матрицы."""
-
-    if sparse.issparse(matrix):
-        return matrix[:, list(column_indices)]
-    return np.asarray(matrix)[:, list(column_indices)]
-
-
-def transform_with_names(
-    preprocessor: ColumnTransformer,
-    x_train: pd.DataFrame,
-    x_valid: pd.DataFrame,
-    x_test: pd.DataFrame,
-):
-    """Фитит препроцессор на train и возвращает train/valid/test + имена признаков."""
-
-    x_train_t = preprocessor.fit_transform(x_train)
-    x_valid_t = preprocessor.transform(x_valid)
-    x_test_t = preprocessor.transform(x_test)
-    feature_names = preprocessor.get_feature_names_out().tolist()
-    return x_train_t, x_valid_t, x_test_t, feature_names
-
-
-def resolve_feature_indices(feature_names: Sequence[str], selected_features: Sequence[str]) -> List[int]:
-    """Находит индексы выбранных признаков по именам."""
-
-    position_map = {name: idx for idx, name in enumerate(feature_names)}
-    missing = [feature for feature in selected_features if feature not in position_map]
-    if missing:
-        raise ValueError(
-            "Часть признаков из feature set не найдена после препроцессинга: "
-            f"{missing[:5]}"
-        )
-    return [position_map[feature] for feature in selected_features]
-
-
 def load_feature_sets(path: Path | None = None) -> Dict[str, Dict[str, List[str]]]:
     """Загружает candidate feature set из ЛР 01."""
 
@@ -217,19 +160,6 @@ def load_feature_sets(path: Path | None = None) -> Dict[str, Dict[str, List[str]
         )
     with open(feature_sets_path, "r", encoding="utf-8") as f:
         return json.load(f)
-
-
-def load_lab01_model_results(path: Path | None = None) -> pd.DataFrame:
-    """Загружает model_results.csv из ЛР 01."""
-
-    results_path = path or (LAB01_OUTPUT_DIR / "model_results.csv")
-    if not results_path.exists():
-        raise FileNotFoundError(
-            "Не найден model_results.csv из ЛР 01. "
-            "Сначала выполните 03_model_comparison первой лабораторной "
-            "или положите файл в ../01-feature-importance-and-selection/outputs/."
-        )
-    return pd.read_csv(results_path)
 
 
 def load_generalization_audit(path: Path | None = None) -> pd.DataFrame:
@@ -245,38 +175,39 @@ def load_generalization_audit(path: Path | None = None) -> pd.DataFrame:
     return pd.read_csv(audit_path)
 
 
-def choose_best_nonfull_feature_set(
-    model_results: pd.DataFrame,
+def list_feature_set_names(
     feature_sets: Dict[str, Dict[str, List[str]]],
     dataset_name: str,
-) -> str:
-    """Выбирает лучший неполный feature set по roc_auc, затем f1, затем accuracy."""
+) -> List[str]:
+    """Возвращает все candidate feature set для dataset вместе с `full`."""
 
-    subset = model_results[model_results["dataset"] == dataset_name].copy()
-    summary = (
-        subset.pivot_table(
-            index=["feature_set", "model"],
-            columns="metric",
-            values="value",
-            aggfunc="mean",
-        )
-        .reset_index()
-        .sort_values(["roc_auc", "f1", "accuracy"], ascending=[False, False, False])
-    )
-
-    available_sets = set(feature_sets.get(dataset_name, {}))
-    for _, row in summary.iterrows():
-        feature_set_name = row["feature_set"]
-        if feature_set_name != "full" and feature_set_name in available_sets:
-            return feature_set_name
-
-    fallback = next(iter(feature_sets.get(dataset_name, {})), None)
-    if fallback is None:
+    dataset_feature_sets = feature_sets.get(dataset_name, {})
+    if not dataset_feature_sets:
         raise ValueError(f"Для dataset={dataset_name} не найдено candidate feature set в ЛР 01.")
-    return fallback
+    return ["full"] + sorted(dataset_feature_sets)
 
 
-def summarize_predictions(y_true: Sequence[int], y_pred: Sequence[int], y_score: Sequence[float]) -> Dict[str, float]:
+def get_feature_set_features(
+    feature_sets: Dict[str, Dict[str, List[str]]],
+    dataset_name: str,
+    feature_set_name: str,
+) -> Sequence[str] | None:
+    """Возвращает transformed features для заданного feature set.
+
+    Для `full` возвращается `None`, что означает использовать все признаки
+    после текущего preprocessing.
+    """
+
+    if feature_set_name == "full":
+        return None
+    return list(feature_sets[dataset_name][feature_set_name])
+
+
+def summarize_predictions(
+    y_true: Sequence[int],
+    y_pred: Sequence[int],
+    y_score: Sequence[float],
+) -> Dict[str, float]:
     """Считает базовые метрики бинарной классификации."""
 
     y_true_arr = np.asarray(y_true, dtype=int)
@@ -388,108 +319,180 @@ def generalization_gap(train_value: float, valid_value: float) -> float:
     return float(train_value - valid_value)
 
 
-def choose_lab03_feature_set(generalization_audit: pd.DataFrame, dataset_name: str) -> str:
-    """Выбирает feature set для второго ноутбука.
+def _feature_set_summary_for_model(
+    generalization_audit: pd.DataFrame,
+    dataset_name: str,
+    model_name: str,
+) -> pd.DataFrame:
+    """Готовит сводную таблицу по feature set для dataset + model."""
+
+    subset = generalization_audit[
+        (generalization_audit["dataset"] == dataset_name)
+        & (generalization_audit["model"] == model_name)
+    ].copy()
+    if subset.empty:
+        raise ValueError(
+            f"В generalization_audit нет строк для dataset={dataset_name} и model={model_name}."
+        )
+
+    summary = (
+        subset.pivot_table(
+            index="feature_set",
+            columns="split",
+            values=["accuracy", "f1", "roc_auc"],
+            aggfunc="mean",
+        )
+        .sort_index(axis=1)
+        .reset_index()
+    )
+    summary.columns = [
+        "feature_set" if column == ("feature_set", "") else f"{column[1]}_{column[0]}"
+        for column in summary.columns
+    ]
+    summary["f1_gap"] = summary["train_f1"] - summary["validation_f1"]
+    summary["abs_f1_gap"] = summary["f1_gap"].abs()
+    summary["full_penalty"] = (summary["feature_set"] == "full").astype(int)
+    return summary
+
+
+def explain_feature_set_tie_break(feature_rows: pd.DataFrame) -> str:
+    """Кратко объясняет, каким правилом был выбран winner."""
+
+    top_validation_f1 = feature_rows["validation_f1"].max()
+    remaining = feature_rows[np.isclose(feature_rows["validation_f1"], top_validation_f1)].copy()
+    if len(remaining) == 1:
+        return "best validation_f1"
+
+    best_abs_gap = remaining["abs_f1_gap"].min()
+    remaining = remaining[np.isclose(remaining["abs_f1_gap"], best_abs_gap)].copy()
+    if len(remaining) == 1:
+        return "tie on validation_f1 -> min abs_f1_gap"
+
+    best_full_penalty = remaining["full_penalty"].min()
+    remaining = remaining[remaining["full_penalty"] == best_full_penalty].copy()
+    if len(remaining) == 1:
+        return "tie on validation_f1 and abs_f1_gap -> prefer non-full"
+
+    return "tie on validation_f1, abs_f1_gap and full/non-full -> lexicographic order"
+
+
+def choose_feature_set_for_model(
+    generalization_audit: pd.DataFrame,
+    dataset_name: str,
+    model_name: str,
+) -> str:
+    """Выбирает feature set для заданной пары dataset + model.
 
     Правило:
     - максимум validation f1;
-    - затем минимум f1 gap;
-    - затем предпочесть неполный набор признаков при равенстве.
+    - затем минимум abs(train f1 - validation f1);
+    - затем предпочесть неполный набор признаков;
+    - затем лексикографически меньший feature set.
     """
 
-    subset = generalization_audit[generalization_audit["dataset"] == dataset_name].copy()
-    feature_rows = (
-        subset.groupby(["feature_set", "split"], as_index=False)["f1"]
-        .mean()
-        .pivot(index="feature_set", columns="split", values="f1")
-        .reset_index()
-        .rename_axis(None, axis=1)
-        .rename(columns={"train": "train_f1", "validation": "validation_f1"})
+    feature_rows = _feature_set_summary_for_model(
+        generalization_audit=generalization_audit,
+        dataset_name=dataset_name,
+        model_name=model_name,
     )
-    feature_rows["f1_gap"] = feature_rows["train_f1"] - feature_rows["validation_f1"]
-    feature_rows["full_penalty"] = (feature_rows["feature_set"] == "full").astype(int)
-
     ordered = feature_rows.sort_values(
-        ["validation_f1", "f1_gap", "full_penalty"],
-        ascending=[False, True, True],
+        ["validation_f1", "abs_f1_gap", "full_penalty", "feature_set"],
+        ascending=[False, True, True, True],
     )
     return str(ordered.iloc[0]["feature_set"])
 
 
 def build_generalization_selection_summary(generalization_audit: pd.DataFrame) -> pd.DataFrame:
-    """Готовит компактную summary по feature set для narrative-части."""
+    """Готовит компактную summary по всем feature set для narrative-части."""
 
     rows = []
     for dataset_name in sorted(generalization_audit["dataset"].unique()):
-        subset = generalization_audit[generalization_audit["dataset"] == dataset_name].copy()
-        for (feature_set_name, model_name), group in subset.groupby(["feature_set", "model"]):
-            metric_by_split = (
-                group.pivot_table(
-                    index="split",
-                    values=["accuracy", "f1", "roc_auc"],
-                    aggfunc="mean",
-                )
-                .reset_index()
-                .set_index("split")
+        dataset_subset = generalization_audit[generalization_audit["dataset"] == dataset_name]
+        for model_name in sorted(dataset_subset["model"].unique()):
+            feature_rows = _feature_set_summary_for_model(
+                generalization_audit=generalization_audit,
+                dataset_name=dataset_name,
+                model_name=model_name,
             )
-            train_f1 = float(metric_by_split.loc["train", "f1"])
-            valid_f1 = float(metric_by_split.loc["validation", "f1"])
+            for row in feature_rows.to_dict("records"):
+                rows.append(
+                    {
+                        "dataset": dataset_name,
+                        "model": model_name,
+                        "feature_set": row["feature_set"],
+                        "train_f1": float(row["train_f1"]),
+                        "validation_f1": float(row["validation_f1"]),
+                        "f1_gap": float(row["f1_gap"]),
+                        "abs_f1_gap": float(row["abs_f1_gap"]),
+                        "train_roc_auc": float(row["train_roc_auc"]),
+                        "validation_roc_auc": float(row["validation_roc_auc"]),
+                        "roc_auc_gap": float(row["train_roc_auc"] - row["validation_roc_auc"]),
+                    }
+                )
+    return pd.DataFrame(rows).sort_values(
+        ["dataset", "model", "validation_f1", "abs_f1_gap", "feature_set"],
+        ascending=[True, True, False, True, True],
+    )
+
+
+def build_model_feature_set_decisions(generalization_audit: pd.DataFrame) -> pd.DataFrame:
+    """Возвращает итоговый выбор feature set для каждой пары dataset + model."""
+
+    rows = []
+    for dataset_name in sorted(generalization_audit["dataset"].unique()):
+        dataset_subset = generalization_audit[generalization_audit["dataset"] == dataset_name]
+        for model_name in sorted(dataset_subset["model"].unique()):
+            feature_rows = _feature_set_summary_for_model(
+                generalization_audit=generalization_audit,
+                dataset_name=dataset_name,
+                model_name=model_name,
+            )
+            ordered = feature_rows.sort_values(
+                ["validation_f1", "abs_f1_gap", "full_penalty", "feature_set"],
+                ascending=[False, True, True, True],
+            ).reset_index(drop=True)
+            winner = ordered.iloc[0]
             rows.append(
                 {
                     "dataset": dataset_name,
-                    "feature_set": feature_set_name,
                     "model": model_name,
-                    "train_f1": train_f1,
-                    "validation_f1": valid_f1,
-                    "f1_gap": generalization_gap(train_f1, valid_f1),
-                    "train_roc_auc": float(metric_by_split.loc["train", "roc_auc"]),
-                    "validation_roc_auc": float(metric_by_split.loc["validation", "roc_auc"]),
-                    "roc_auc_gap": generalization_gap(
-                        float(metric_by_split.loc["train", "roc_auc"]),
-                        float(metric_by_split.loc["validation", "roc_auc"]),
-                    ),
+                    "selected_feature_set": str(winner["feature_set"]),
+                    "train_f1": float(winner["train_f1"]),
+                    "validation_f1": float(winner["validation_f1"]),
+                    "f1_gap": float(winner["f1_gap"]),
+                    "abs_f1_gap": float(winner["abs_f1_gap"]),
+                    "tie_break_reason": explain_feature_set_tie_break(feature_rows),
                 }
             )
-    return pd.DataFrame(rows).sort_values(
-        ["dataset", "validation_f1", "f1_gap"],
-        ascending=[True, False, True],
-    )
+    return pd.DataFrame(rows).sort_values(["dataset", "model"]).reset_index(drop=True)
 
 
 class PreprocessedFeatureSelector(BaseEstimator, TransformerMixin):
     """Фитит препроцессор и оставляет только выбранные transformed features."""
 
-    def __init__(
-        self,
-        selected_features: Sequence[str] | None = None,
-        category_levels: Dict[str, Tuple[object, ...]] | None = None,
-    ):
+    def __init__(self, selected_features: Sequence[str] | None = None):
         self.selected_features = selected_features
-        self.category_levels = category_levels
 
     def fit(self, X, y=None):
         x_df = pd.DataFrame(X).copy() if not isinstance(X, pd.DataFrame) else X.copy()
-        self.preprocessor_ = build_preprocessor(x_df, category_levels=self.category_levels)
+        self.preprocessor_ = build_preprocessor(x_df)
         self.preprocessor_.fit(x_df, y)
         self.feature_names_ = self.preprocessor_.get_feature_names_out().tolist()
 
         if self.selected_features is None:
             self.selected_feature_names_ = list(self.feature_names_)
             self.selected_indices_ = list(range(len(self.selected_feature_names_)))
-            self.missing_mask_ = [False] * len(self.selected_feature_names_)
         else:
             self.selected_feature_names_ = list(self.selected_features)
             position_map = {name: idx for idx, name in enumerate(self.feature_names_)}
             self.selected_indices_ = [
                 position_map.get(name, -1) for name in self.selected_feature_names_
             ]
-            self.missing_mask_ = [index == -1 for index in self.selected_indices_]
         return self
 
     def transform(self, X):
         x_df = pd.DataFrame(X).copy() if not isinstance(X, pd.DataFrame) else X.copy()
-        transformed = self.preprocessor_.transform(x_df)
-        dense_transformed = to_dense(transformed)
+        dense_transformed = to_dense(self.preprocessor_.transform(x_df))
 
         if self.selected_features is None:
             return dense_transformed
@@ -510,43 +513,12 @@ class PreprocessedFeatureSelector(BaseEstimator, TransformerMixin):
         return np.asarray(self.selected_feature_names_, dtype=object)
 
 
-def build_model_pipeline(
-    model,
-    selected_features: Sequence[str] | None,
-    category_levels: Dict[str, Tuple[object, ...]],
-) -> Pipeline:
-    """Строит честный Pipeline для GridSearchCV."""
+def build_model_pipeline(model, selected_features: Sequence[str] | None) -> Pipeline:
+    """Строит Pipeline, в котором preprocessing обучается внутри fit."""
 
     return Pipeline(
         steps=[
-            (
-                "features",
-                PreprocessedFeatureSelector(
-                    selected_features=selected_features,
-                    category_levels=category_levels,
-                ),
-            ),
-            ("model", model),
-        ]
-    )
-
-
-def build_full_feature_pipeline(
-    model,
-    x_reference: pd.DataFrame,
-) -> Pipeline:
-    """Строит Pipeline без отбора признаков для baseline на raw-данных."""
-
-    category_levels = infer_category_levels(x_reference)
-    return Pipeline(
-        steps=[
-            (
-                "features",
-                PreprocessedFeatureSelector(
-                    selected_features=None,
-                    category_levels=category_levels,
-                ),
-            ),
+            ("features", PreprocessedFeatureSelector(selected_features=selected_features)),
             ("model", model),
         ]
     )
@@ -594,7 +566,9 @@ def choose_validation_winner(validation_summary: pd.DataFrame, dataset_name: str
     """Выбирает итоговую модель по validation f1, затем roc_auc, затем simplicity."""
 
     subset = validation_summary[validation_summary["dataset"] == dataset_name].copy()
-    subset["model_priority"] = subset["model"].map({"LogisticRegression": 0, "RandomForest": 1}).fillna(99)
+    subset["model_priority"] = (
+        subset["model"].map({"LogisticRegression": 0, "RandomForest": 1}).fillna(99)
+    )
     ordered = subset.sort_values(
         ["validation_f1", "validation_roc_auc", "model_priority"],
         ascending=[False, False, True],

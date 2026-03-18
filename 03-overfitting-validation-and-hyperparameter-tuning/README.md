@@ -8,13 +8,13 @@
 Здесь мы не "накручиваем метрику", а учимся улучшать модель честно:
 - отделять `train`, `validation`, `test`;
 - замечать переобучение по разрыву между качеством на обучении и проверке;
-- подбирать гиперпараметры через `GridSearchCV`, не используя `test` для выбора.
+- подбирать гиперпараметры через `GridSearchCV`, не используя `test` для выбора;
+- сравнивать candidate feature set заново на текущем split, а не доверять старому победителю.
 
 ЛР 03 продолжает ЛР 01:
 - берем те же датасеты `medical` и `finance`;
 - используем candidate feature set из `../01-feature-importance-and-selection/outputs/feature_sets_wrapper_embedded.json`;
-- опираемся на `../01-feature-importance-and-selection/outputs/model_results.csv`,
-  чтобы взять лучший неполный feature set как стартовую точку.
+- относимся к этим наборам как к гипотезам, которые нужно переоценить в новом эксперименте.
 
 ЛР 02 остается смысловым мостом:
 мы уже учились объяснять поведение модели, а теперь учимся улучшать ее без самообмана.
@@ -26,18 +26,26 @@
   - финансы: прогноз кредитного риска.
 - Локальный запуск на CPU.
 - Только знакомый стек: `pandas`, `numpy`, `scikit-learn`, `matplotlib`, `seaborn`.
-- Без новых тяжелых библиотек и без сложной теории ради теории.
+- Без nested CV, новых тяжелых библиотек и сложной теории ради теории.
 
 ## Зависимости от ЛР 01
-Новая ЛР ожидает, что доступны артефакты из:
+Новая ЛР ожидает только один upstream-артефакт:
 - `../01-feature-importance-and-selection/outputs/feature_sets_wrapper_embedded.json`
-- `../01-feature-importance-and-selection/outputs/model_results.csv`
 
-Если ЛР 01 уже была пройдена в текущем репозитории, ноутбуки подхватят эти файлы автоматически.
+Если ЛР 01 уже была пройдена в текущем репозитории, ноутбуки подхватят этот файл автоматически.
+
+## Data Usage Contract
+В этой ЛР важно не только запустить код, но и честно разделить роли частей данных:
+- `train`: fit baseline-моделей, validation curves и `GridSearchCV`;
+- `validation`: выбор feature set для каждой модели, сравнение лучших tuned-конфигураций и выбор финального winner;
+- `test`: один финальный `baseline_default` vs `tuned_best` check после всех решений.
+
+Если tuned-модель не улучшает `test`, это не провал лабораторной.
+Это нормальный результат, который показывает, что честная процедура важнее красивой цифры.
 
 ## Структура папки
 - `notebooks/` — шаблоны заданий с TODO и обязательными самостоятельными блоками.
-- `solutions/` — решения базового маршрута без ответов на самостоятельные narrative-блоки.
+- `solutions/` — решения базового маршрута без ответов на narrative-блоки.
 - `study-notes/` — заметки и глоссарий по переобучению, валидации и тюнингу.
 - `outputs/` — промежуточные и итоговые таблицы.
 - `report-template.md` — шаблон итогового отчета.
@@ -46,15 +54,16 @@
 
 ## Ноутбуки и порядок прохождения
 1. `notebooks/01_train_validation_overfitting_todo.ipynb` (90 минут)
-   - загрузка feature set из ЛР 01;
-   - сравнение `full` против лучшего неполного feature set;
+   - загрузка всех candidate feature set из ЛР 01;
+   - сравнение `full` и всех неполных наборов на одном и том же split;
    - оценка `LogisticRegression` и `RandomForestClassifier` на `train` и `validation`;
    - вычисление `generalization gap`;
+   - выбор feature set отдельно для каждой модели;
    - простые validation curves по одному гиперпараметру на модель.
 2. `notebooks/02_gridsearch_and_final_choice_todo.ipynb` (90 минут)
-   - выбор одного feature set на основе результатов первого ноутбука;
-   - честный `GridSearchCV` через `Pipeline`;
-   - сравнение лучших конфигураций на `validation`;
+   - чтение `generalization_audit.csv` из первого ноутбука;
+   - честный `GridSearchCV` через `Pipeline` для каждой пары `dataset + model + selected_feature_set`;
+   - сравнение лучших tuned-конфигураций на `validation`;
    - финальное сравнение `baseline_default` против `tuned_best` на `test`.
 
 ### Workflow: base + mandatory independent
@@ -63,8 +72,9 @@
 - В `solutions` нет ответов на narrative-блоки и самостоятельные задания намеренно.
 - По ходу работы обязательно фиксируйте:
   - где модель переобучается;
-  - какой гиперпараметр на что влияет;
-  - почему итоговый выбор делается именно так, а не по одной красивой цифре.
+  - как feature set влияет на разные model families;
+  - где tuning помогает, а где почти ничего не меняет;
+  - почему итоговый выбор делается по `validation`, а не по train-оптимизму.
 
 ## Что сдавать
 - заполненные ноутбуки с выполненными ячейками и выводами;
@@ -91,6 +101,8 @@
 - `dataset`, `feature_set`, `model`, `variant`
 - `accuracy`, `f1`, `roc_auc`, `fit_time_sec`
 
+Замечание: в `validation_curve_results` и `gridsearch_results_top` feature set выбирается отдельно для каждой модели, поэтому внутри одного dataset у `LogisticRegression` и `RandomForest` он может отличаться.
+
 ## Обязательные самостоятельные блоки
 - экспорт `outputs/generalization_audit.csv`
 - экспорт `outputs/validation_curve_results.csv`
@@ -111,14 +123,16 @@ jupyter notebook
 ```
 
 ## Рекомендуемый маршрут выполнения
-1. В первом ноутбуке сравнить `full` и лучший неполный feature set на `train` и `validation`.
+1. В первом ноутбуке сравнить `full` и все candidate feature set на `train` и `validation`.
 2. Явно выписать, где виден `generalization gap`.
-3. Построить validation curves и зафиксировать, где модель усложняется или становится устойчивее.
-4. Во втором ноутбуке запустить `GridSearchCV` только на `train`.
-5. Сравнить лучшие конфигурации на `validation` и выбрать финальную модель.
-6. Один раз проверить `baseline_default` и `tuned_best` на `test`.
-7. Обновлять `study-notes/glossary.md` по ходу работы, а не в конце.
-8. Заполнить отчет по `report-template.md`.
+3. Зафиксировать, что `train` часто, но не всегда лучше `validation`.
+4. Для каждой модели выбрать свой feature set по правилу `max validation f1 -> min abs f1 gap -> prefer non-full -> lexicographic`.
+5. Построить validation curves и зафиксировать, где модель усложняется или становится устойчивее.
+6. Во втором ноутбуке запустить `GridSearchCV` только на `train`.
+7. Сравнить лучшие tuned-конфигурации на `validation` и выбрать финальную модель.
+8. Один раз проверить `baseline_default` и `tuned_best` на `test`.
+9. Обновлять `study-notes/glossary.md` по ходу работы, а не в конце.
+10. Заполнить отчет по `report-template.md`.
 
 ## Расширения на 1-2 дня
 - добавить `LinearSVC` как третью модель и сравнить ее с базовыми двумя;
