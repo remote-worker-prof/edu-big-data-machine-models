@@ -6,6 +6,7 @@
 ## Структура
 - `01-feature-importance-and-selection/` — ЛР 01: значимость и отбор признаков.
 - `02-model-interpretability-and-explainability/` — ЛР 02: интерпретация и объяснение моделей.
+- `03-overfitting-validation-and-hyperparameter-tuning/` — ЛР 03: переобучение, validation и честный подбор гиперпараметров.
 - `.venv/` — единое локальное окружение Python для проекта (не коммитится).
 
 ## Текущая лабораторная
@@ -14,6 +15,9 @@
 
 Материалы ЛР 02 находятся в:
 - [02-model-interpretability-and-explainability/README.md](./02-model-interpretability-and-explainability/README.md)
+
+Материалы ЛР 03 находятся в:
+- [03-overfitting-validation-and-hyperparameter-tuning/README.md](./03-overfitting-validation-and-hyperparameter-tuning/README.md)
 
 Внутри ЛР 01:
 - `notebooks/` — ноутбуки с TODO и обязательными самостоятельными блоками;
