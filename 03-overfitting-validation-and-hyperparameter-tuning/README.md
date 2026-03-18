@@ -43,6 +43,16 @@
 Если tuned-модель не улучшает `test`, это не провал лабораторной.
 Это нормальный результат, который показывает, что честная процедура важнее красивой цифры.
 
+## Что Эта ЛР Упрощает
+Базовый маршрут этой лабораторной специально упрощен, чтобы остаться понятным новичку:
+- мы переиспользуем один и тот же `validation` для нескольких последовательных решений;
+- мы не вводим nested CV в обязательную часть;
+- мы не добавляем отдельный selection split сверх схемы `train/validation/test`.
+
+Это didactic shortcut, а не production gold standard.
+При этом базовый маршрут остается честным по отношению к `test`, потому что `test` не участвует в выборе feature set, гиперпараметров и финальной модели.
+На продвинутом треке этот workflow можно усилить через nested CV или отдельный selection split.
+
 ## Структура папки
 - `notebooks/` — шаблоны заданий с TODO и обязательными самостоятельными блоками.
 - `solutions/` — решения базового маршрута без ответов на narrative-блоки.
@@ -61,7 +71,7 @@
    - выбор feature set отдельно для каждой модели;
    - простые validation curves по одному гиперпараметру на модель.
 2. `notebooks/02_gridsearch_and_final_choice_todo.ipynb` (90 минут)
-   - чтение `generalization_audit.csv` из первого ноутбука;
+   - чтение `model_feature_set_decisions.csv` из первого ноутбука как явного входного контракта;
    - честный `GridSearchCV` через `Pipeline` для каждой пары `dataset + model + selected_feature_set`;
    - сравнение лучших tuned-конфигураций на `validation`;
    - финальное сравнение `baseline_default` против `tuned_best` на `test`.
@@ -89,6 +99,10 @@
 - `dataset`, `feature_set`, `model`, `split`
 - `accuracy`, `f1`, `roc_auc`, `fit_time_sec`
 
+`model_feature_set_decisions`:
+- `dataset`, `model`, `selected_feature_set`
+- `train_f1`, `validation_f1`, `f1_gap`, `abs_f1_gap`, `tie_break_reason`
+
 `validation_curve_results`:
 - `dataset`, `feature_set`, `model`, `hyperparameter`, `param_value`, `split`
 - `accuracy`, `f1`, `roc_auc`
@@ -105,6 +119,7 @@
 
 ## Обязательные самостоятельные блоки
 - экспорт `outputs/generalization_audit.csv`
+- экспорт `outputs/model_feature_set_decisions.csv`
 - экспорт `outputs/validation_curve_results.csv`
 - экспорт `outputs/gridsearch_results_top.csv`
 - экспорт `outputs/baseline_vs_tuned_test_results.csv`
@@ -127,12 +142,48 @@ jupyter notebook
 2. Явно выписать, где виден `generalization gap`.
 3. Зафиксировать, что `train` часто, но не всегда лучше `validation`.
 4. Для каждой модели выбрать свой feature set по правилу `max validation f1 -> min abs f1 gap -> prefer non-full -> lexicographic`.
-5. Построить validation curves и зафиксировать, где модель усложняется или становится устойчивее.
-6. Во втором ноутбуке запустить `GridSearchCV` только на `train`.
-7. Сравнить лучшие tuned-конфигурации на `validation` и выбрать финальную модель.
-8. Один раз проверить `baseline_default` и `tuned_best` на `test`.
-9. Обновлять `study-notes/glossary.md` по ходу работы, а не в конце.
-10. Заполнить отчет по `report-template.md`.
+5. Сохранить `model_feature_set_decisions.csv` как явный вход во второй ноутбук.
+6. Построить validation curves и зафиксировать, где модель усложняется или становится устойчивее.
+7. Во втором ноутбуке запустить `GridSearchCV` только на `train`.
+8. Сравнить лучшие tuned-конфигурации на `validation` и выбрать финальную модель.
+9. Один раз проверить `baseline_default` и `tuned_best` на `test`.
+10. Обновлять `study-notes/glossary.md` по ходу работы, а не в конце.
+11. Заполнить отчет по `report-template.md`.
+
+## После Каждого Ноутбука
+После `notebooks/01_train_validation_overfitting_todo.ipynb` в `outputs/` должны появиться:
+- `generalization_audit.csv`
+- `model_feature_set_decisions.csv`
+- `validation_curve_results.csv`
+
+После `notebooks/02_gridsearch_and_final_choice_todo.ipynb` в `outputs/` должны появиться:
+- `gridsearch_results_top.csv`
+- `baseline_vs_tuned_test_results.csv`
+
+## Если Notebook 2 Не Стартует
+Проверьте по порядку:
+- первый ноутбук действительно дошел до export-cell без `NotImplementedError`;
+- в `outputs/` лежат все три CSV из notebook 1;
+- `model_feature_set_decisions.csv` не редактировался вручную и содержит по одной строке на каждую пару `dataset + model`;
+- notebook 1 и notebook 2 запускаются из одной и той же папки модуля и из одного и того же `.venv`.
+
+Если `model_feature_set_decisions.csv` поврежден или устарел, не правьте его вручную: просто заново выполните экспортную ячейку в notebook 1.
+
+## Submission Checklist
+- Оба `todo`-ноутбука выполнены и содержат ваши выводы.
+- В `outputs/` лежат все 5 обязательных CSV.
+- `study-notes/glossary.md` обновлялся по ходу работы.
+- Narrative-блоки и отчет по `report-template.md` заполнены.
+- В финальном сравнении `test` использован только один раз.
+
+## Проверка Для Преподавателя/Разработчика
+После настройки окружения можно прогнать полный smoke-check ЛР:
+
+```bash
+python scripts/verify_lab03.py
+```
+
+Скрипт выполняет оба `solution`-ноутбука и проверяет контракты всех обязательных CSV-артефактов.
 
 ## Расширения на 1-2 дня
 - добавить `LinearSVC` как третью модель и сравнить ее с базовыми двумя;

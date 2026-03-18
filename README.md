@@ -7,6 +7,7 @@
 - `01-feature-importance-and-selection/` — ЛР 01: значимость и отбор признаков.
 - `02-model-interpretability-and-explainability/` — ЛР 02: интерпретация и объяснение моделей.
 - `03-overfitting-validation-and-hyperparameter-tuning/` — ЛР 03: переобучение, validation и честный подбор гиперпараметров.
+  Внутри ЛР 03 есть отдельный maintainers smoke-check: `python 03-overfitting-validation-and-hyperparameter-tuning/scripts/verify_lab03.py`.
 - `.venv/` — единое локальное окружение Python для проекта (не коммитится).
 
 ## Текущая лабораторная

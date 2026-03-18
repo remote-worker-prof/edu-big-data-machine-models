@@ -19,3 +19,9 @@
 3. Дать **сравнение с альтернативой**.
 4. Отразить **ограничения/риски** подхода.
 5. Указать **источники** (1-2+).
+
+Стартовые шаблоны для этой ЛР:
+- `overfitting-vs-underfitting.md`
+- `train-validation-test-split.md`
+- `gridsearchcv-practice.md`
+- `validation-reuse-vs-nested-cv.md`

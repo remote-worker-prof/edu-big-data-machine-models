@@ -42,6 +42,28 @@ VALIDATION_CURVE_GRIDS = {
     "RandomForest": ("max_depth", [2, 4, 6, 8, None]),
 }
 
+MODEL_FEATURE_SET_DECISION_COLUMNS = [
+    "dataset",
+    "model",
+    "selected_feature_set",
+    "train_f1",
+    "validation_f1",
+    "f1_gap",
+    "abs_f1_gap",
+    "tie_break_reason",
+]
+
+
+def expected_model_feature_set_decision_pairs(
+    expected_datasets: Sequence[str] | None = None,
+    expected_models: Sequence[str] | None = None,
+) -> List[Tuple[str, str]]:
+    """Возвращает ожидаемые пары dataset + model для decisions CSV."""
+
+    dataset_names = list(expected_datasets) if expected_datasets is not None else sorted(DATASET_PATHS)
+    model_names = list(expected_models) if expected_models is not None else sorted(make_tuning_models())
+    return sorted((dataset_name, model_name) for dataset_name in dataset_names for model_name in model_names)
+
 
 def load_dataset(path: str | Path) -> pd.DataFrame:
     """Загружает CSV и проверяет наличие таргета."""
@@ -173,6 +195,119 @@ def load_generalization_audit(path: Path | None = None) -> pd.DataFrame:
             "что файл лежит в outputs/."
         )
     return pd.read_csv(audit_path)
+
+
+def load_model_feature_set_decisions(
+    path: Path | None = None,
+    expected_datasets: Sequence[str] | None = None,
+    expected_models: Sequence[str] | None = None,
+) -> pd.DataFrame:
+    """Загружает и валидирует итоговый выбор feature set из первого ноутбука ЛР 03."""
+
+    decisions_path = path or (OUTPUT_DIR / "model_feature_set_decisions.csv")
+    if not decisions_path.exists():
+        _raise_missing_model_feature_set_decisions(path)
+
+    return validate_model_feature_set_decisions(
+        decisions=pd.read_csv(decisions_path),
+        expected_datasets=expected_datasets,
+        expected_models=expected_models,
+    )
+
+
+def _raise_missing_model_feature_set_decisions(path: Path | None = None):
+    decisions_path = path or (OUTPUT_DIR / "model_feature_set_decisions.csv")
+    raise FileNotFoundError(
+        "Не найден model_feature_set_decisions.csv из первого ноутбука ЛР 03. "
+        "Сначала выполните 01_train_validation_overfitting до экспортной ячейки "
+        f"или убедитесь, что файл лежит в {decisions_path.parent}/."
+    )
+
+
+def validate_model_feature_set_decisions(
+    decisions: pd.DataFrame,
+    expected_datasets: Sequence[str] | None = None,
+    expected_models: Sequence[str] | None = None,
+) -> pd.DataFrame:
+    """Проверяет контракт model_feature_set_decisions.csv и возвращает нормализованный DataFrame."""
+
+    expected_columns = set(MODEL_FEATURE_SET_DECISION_COLUMNS)
+    actual_columns = set(decisions.columns)
+    if actual_columns != expected_columns:
+        missing_columns = sorted(expected_columns - actual_columns)
+        extra_columns = sorted(actual_columns - expected_columns)
+        raise ValueError(
+            "model_feature_set_decisions.csv имеет неверные колонки. "
+            f"Ожидались {sorted(expected_columns)}, получены {list(decisions.columns)}. "
+            f"Отсутствуют: {missing_columns or 'нет'}. Лишние: {extra_columns or 'нет'}. "
+            "Сначала завершите 01_train_validation_overfitting до экспортной ячейки "
+            "или пересохраните CSV без ручного редактирования."
+        )
+
+    duplicate_mask = decisions.duplicated(["dataset", "model"], keep=False)
+    if duplicate_mask.any():
+        duplicate_pairs = sorted(
+            {
+                f"{row.dataset}/{row.model}"
+                for row in decisions.loc[duplicate_mask, ["dataset", "model"]].itertuples(index=False)
+            }
+        )
+        raise ValueError(
+            "model_feature_set_decisions.csv должен содержать уникальные пары dataset + model, "
+            f"но найдены дубликаты: {duplicate_pairs}. "
+            "Сначала завершите 01_train_validation_overfitting заново или пересохраните CSV."
+        )
+
+    expected_pairs = set(
+        expected_model_feature_set_decision_pairs(
+            expected_datasets=expected_datasets,
+            expected_models=expected_models,
+        )
+    )
+    observed_pairs = {
+        (row.dataset, row.model) for row in decisions.loc[:, ["dataset", "model"]].itertuples(index=False)
+    }
+    missing_pairs = sorted(expected_pairs - observed_pairs)
+    if missing_pairs:
+        missing_pairs_text = ", ".join(f"{dataset}/{model}" for dataset, model in missing_pairs)
+        raise ValueError(
+            "model_feature_set_decisions.csv неполон: отсутствуют строки для "
+            f"{missing_pairs_text}. "
+            "Сначала завершите 01_train_validation_overfitting до экспортной ячейки "
+            "или пересохраните CSV после полного выполнения первого ноутбука."
+        )
+
+    return (
+        decisions.loc[:, MODEL_FEATURE_SET_DECISION_COLUMNS]
+        .sort_values(["dataset", "model"])
+        .reset_index(drop=True)
+    )
+
+
+def get_model_feature_set_decision(
+    decisions: pd.DataFrame,
+    dataset_name: str,
+    model_name: str,
+) -> pd.Series:
+    """Возвращает одну валидную строку decisions для пары dataset + model."""
+
+    subset = decisions[
+        (decisions["dataset"] == dataset_name) & (decisions["model"] == model_name)
+    ].copy()
+    if subset.empty:
+        raise ValueError(
+            "В model_feature_set_decisions.csv нет строки для "
+            f"{dataset_name}/{model_name}. "
+            "Сначала завершите 01_train_validation_overfitting до экспортной ячейки "
+            "или пересохраните CSV."
+        )
+    if len(subset) != 1:
+        raise ValueError(
+            "Для пары "
+            f"{dataset_name}/{model_name} ожидалась ровно одна строка в model_feature_set_decisions.csv. "
+            "Сначала пересохраните CSV из первого ноутбука без ручного редактирования."
+        )
+    return subset.iloc[0]
 
 
 def list_feature_set_names(
@@ -376,6 +511,24 @@ def explain_feature_set_tie_break(feature_rows: pd.DataFrame) -> str:
     return "tie on validation_f1, abs_f1_gap and full/non-full -> lexicographic order"
 
 
+def _select_feature_set_winner_row(feature_rows: pd.DataFrame) -> pd.Series:
+    """Применяет tie-break rules последовательно и устойчиво к float-шуму."""
+
+    remaining = feature_rows.copy()
+
+    top_validation_f1 = remaining["validation_f1"].max()
+    remaining = remaining[np.isclose(remaining["validation_f1"], top_validation_f1)].copy()
+
+    best_abs_gap = remaining["abs_f1_gap"].min()
+    remaining = remaining[np.isclose(remaining["abs_f1_gap"], best_abs_gap)].copy()
+
+    best_full_penalty = remaining["full_penalty"].min()
+    remaining = remaining[remaining["full_penalty"] == best_full_penalty].copy()
+
+    ordered = remaining.sort_values("feature_set", ascending=True).reset_index(drop=True)
+    return ordered.iloc[0]
+
+
 def choose_feature_set_for_model(
     generalization_audit: pd.DataFrame,
     dataset_name: str,
@@ -395,11 +548,8 @@ def choose_feature_set_for_model(
         dataset_name=dataset_name,
         model_name=model_name,
     )
-    ordered = feature_rows.sort_values(
-        ["validation_f1", "abs_f1_gap", "full_penalty", "feature_set"],
-        ascending=[False, True, True, True],
-    )
-    return str(ordered.iloc[0]["feature_set"])
+    winner = _select_feature_set_winner_row(feature_rows)
+    return str(winner["feature_set"])
 
 
 def build_generalization_selection_summary(generalization_audit: pd.DataFrame) -> pd.DataFrame:
@@ -447,11 +597,7 @@ def build_model_feature_set_decisions(generalization_audit: pd.DataFrame) -> pd.
                 dataset_name=dataset_name,
                 model_name=model_name,
             )
-            ordered = feature_rows.sort_values(
-                ["validation_f1", "abs_f1_gap", "full_penalty", "feature_set"],
-                ascending=[False, True, True, True],
-            ).reset_index(drop=True)
-            winner = ordered.iloc[0]
+            winner = _select_feature_set_winner_row(feature_rows)
             rows.append(
                 {
                     "dataset": dataset_name,
@@ -464,7 +610,11 @@ def build_model_feature_set_decisions(generalization_audit: pd.DataFrame) -> pd.
                     "tie_break_reason": explain_feature_set_tie_break(feature_rows),
                 }
             )
-    return pd.DataFrame(rows).sort_values(["dataset", "model"]).reset_index(drop=True)
+    return (
+        pd.DataFrame(rows, columns=MODEL_FEATURE_SET_DECISION_COLUMNS)
+        .sort_values(["dataset", "model"])
+        .reset_index(drop=True)
+    )
 
 
 class PreprocessedFeatureSelector(BaseEstimator, TransformerMixin):
