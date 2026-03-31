@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import importlib.util
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -94,6 +95,72 @@ SECOND_NOTEBOOK_PATHS = [
     BASE_DIR / "notebooks/02_gridsearch_and_final_choice_todo.ipynb",
     BASE_DIR / "solutions/02_gridsearch_and_final_choice_solution.ipynb",
 ]
+NOTEBOOK_STRUCTURE_RULES = {
+    BASE_DIR / "notebooks/01_train_validation_overfitting_todo.ipynb": {
+        "required_markers": [
+            "Как проходить этот ноутбук",
+            "Что делаем",
+            "Почему это важно",
+            "Что уже готово на входе",
+            "Что должно получиться",
+            "Как интерпретировать результат",
+            "Проверь себя",
+            "TODO(обязательно)",
+        ],
+        "min_step_count": 5,
+        "min_check_yourself_count": 5,
+        "min_todo_count": 5,
+        "forbidden_markers": [],
+    },
+    BASE_DIR / "notebooks/02_gridsearch_and_final_choice_todo.ipynb": {
+        "required_markers": [
+            "Как проходить этот ноутбук",
+            "Что делаем",
+            "Почему это важно",
+            "Что уже готово на входе",
+            "Что должно получиться",
+            "Как интерпретировать результат",
+            "Проверь себя",
+            "TODO(обязательно)",
+        ],
+        "min_step_count": 5,
+        "min_check_yourself_count": 5,
+        "min_todo_count": 5,
+        "forbidden_markers": [],
+    },
+    BASE_DIR / "solutions/01_train_validation_overfitting_solution.ipynb": {
+        "required_markers": [
+            "Как проходить этот ноутбук",
+            "Что делаем",
+            "Почему это важно",
+            "Что уже готово на входе",
+            "Что должно получиться",
+            "Как интерпретировать результат",
+            "Проверь себя",
+            "Пример вывода по шагу",
+        ],
+        "min_step_count": 5,
+        "min_check_yourself_count": 5,
+        "min_todo_count": 0,
+        "forbidden_markers": ["NotImplementedError"],
+    },
+    BASE_DIR / "solutions/02_gridsearch_and_final_choice_solution.ipynb": {
+        "required_markers": [
+            "Как проходить этот ноутбук",
+            "Что делаем",
+            "Почему это важно",
+            "Что уже готово на входе",
+            "Что должно получиться",
+            "Как интерпретировать результат",
+            "Проверь себя",
+            "Пример вывода по шагу",
+        ],
+        "min_step_count": 5,
+        "min_check_yourself_count": 5,
+        "min_todo_count": 0,
+        "forbidden_markers": ["NotImplementedError"],
+    },
+}
 
 
 def run_solution_notebooks() -> None:
@@ -133,6 +200,46 @@ def assert_static_conditions() -> None:
     for note_path in REQUIRED_NOTE_FILES:
         if not note_path.exists():
             raise AssertionError(f"Не найден обязательный шаблон заметки: {note_path.name}")
+
+    for notebook_path, rules in NOTEBOOK_STRUCTURE_RULES.items():
+        assert_notebook_structure(notebook_path, rules)
+
+
+def assert_notebook_structure(notebook_path: Path, rules: dict) -> None:
+    notebook = json.loads(notebook_path.read_text(encoding="utf-8"))
+    all_text = "\n".join("".join(cell.get("source", [])) for cell in notebook["cells"])
+    markdown_text = "\n".join(
+        "".join(cell.get("source", []))
+        for cell in notebook["cells"]
+        if cell.get("cell_type") == "markdown"
+    )
+    notebook_name = notebook_path.relative_to(BASE_DIR)
+
+    for marker in rules["required_markers"]:
+        if marker not in all_text:
+            raise AssertionError(f"{notebook_name} должен содержать маркер `{marker}`.")
+
+    for marker in rules["forbidden_markers"]:
+        if marker in all_text:
+            raise AssertionError(f"{notebook_name} не должен содержать маркер `{marker}`.")
+
+    step_count = markdown_text.count("## Шаг")
+    if step_count < rules["min_step_count"]:
+        raise AssertionError(
+            f"{notebook_name} должен содержать минимум {rules['min_step_count']} шагов, найдено {step_count}."
+        )
+
+    check_yourself_count = all_text.count("Проверь себя")
+    if check_yourself_count < rules["min_check_yourself_count"]:
+        raise AssertionError(
+            f"{notebook_name} должен содержать минимум {rules['min_check_yourself_count']} блоков `Проверь себя`."
+        )
+
+    todo_count = all_text.count("TODO(обязательно)")
+    if todo_count < rules["min_todo_count"]:
+        raise AssertionError(
+            f"{notebook_name} должен содержать минимум {rules['min_todo_count']} явных `TODO(обязательно)`."
+        )
 
 
 def load_output(name: str) -> pd.DataFrame:
