@@ -12,7 +12,7 @@
 - выполните одну финальную проверку на `test` для уже выбранного правила решения (policy).
 
 ## Формат
-- 2 обязательных Jupyter-ноутбука.
+- 1 теоретический ноутбук + 2 практических ноутбука.
 - Те же 2 бинарных набора данных: `medical`, `finance`.
 - Локальный запуск на CPU.
 - Стек: `pandas`, `numpy`, `scikit-learn`, `matplotlib`, `seaborn`.
@@ -30,7 +30,8 @@
 - `test`: одна финальная проверка только в ноутбуке 2 после выбора правила решения.
 
 ## Структура папки
-- `notebooks/` — версии для студентов в формате Guided Fill (`TODO(обязательно)`).
+- `theory-notebooks/` — теоретический ноутбук, который объясняет все приемы из ЛР 04.
+- `notebooks/` — версии для студентов в формате пошагового заполнения (Guided Fill) (`TODO(обязательно)`).
 - `solutions/` — версии с полным решением.
 - `outputs/` — CSV-артефакты ЛР 04.
 - `study-notes/` — заметки и глоссарий.
@@ -40,12 +41,15 @@
 - `tests/` — юнит-тесты `lab_utils.py`.
 
 ## Порядок прохождения
-1. `notebooks/01_calibration_basics_todo.ipynb`
+1. `theory-notebooks/01_theory_calibration_threshold_decision_policy.ipynb`
+- цель: спокойно разобрать всю теорию перед практикой;
+- внутри каждого раздела идет единый шаблон: «Идея -> Формула -> Мини-пример -> Как читать результат/график -> Где это в практическом ноутбуке».
+2. `notebooks/01_calibration_basics_todo.ipynb`
 - сравнение `uncalibrated`, `calibrated_sigmoid`, `calibrated_isotonic`;
 - расчет `brier`, `log_loss`, `roc_auc`, `pr_auc`, `ece` на `validation`;
-- reliability-анализ и обязательные графики;
+- анализ надежности вероятностей и обязательные графики;
 - выбор `calibrated_best`.
-2. `notebooks/02_threshold_policy_todo.ipynb`
+3. `notebooks/02_threshold_policy_todo.ipynb`
 - базовая модель стоимости ошибок `FP=1`, `FN=5`;
 - перебор порога на `validation`;
 - выбор правила решения по `min expected_cost` при `recall >= 0.60`;
@@ -92,4 +96,4 @@ jupyter notebook
 python scripts/verify_lab04.py
 ```
 
-Скрипт выполняет оба `solution`-ноутбука и проверяет структуру, графики, контракт по данным и CSV-артефакты.
+Скрипт выполняет оба `solution`-ноутбука, проверяет теоретический ноутбук, структуру практики, графики, контракт по данным и CSV-артефакты.

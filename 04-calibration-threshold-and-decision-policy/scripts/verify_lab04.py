@@ -4,6 +4,7 @@
 Это внутренний QA-инструмент (не студенческий шаг).
 Проверяет:
 - структуру и идентичность workflow в todo/solution ноутбуках;
+- структуру теоретического ноутбука;
 - наличие обязательной визуализации;
 - строгий контракт по данным (ноутбук 1 без test, ноутбук 2 с одной финальной проверкой);
 - понятные переходы между шагами;
@@ -18,6 +19,7 @@ import json
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -42,6 +44,8 @@ NOTEBOOK_PAIRS = [
         BASE_DIR / "solutions/02_threshold_policy_solution.ipynb",
     ),
 ]
+
+THEORY_NOTEBOOK = BASE_DIR / "theory-notebooks/01_theory_calibration_threshold_decision_policy.ipynb"
 
 NOTEBOOK_STRUCTURE_RULES = {
     BASE_DIR / "notebooks/01_calibration_basics_todo.ipynb": {
@@ -134,6 +138,30 @@ NOTEBOOK_STRUCTURE_RULES = {
     },
 }
 
+THEORY_NOTEBOOK_RULES = {
+    "required_markers": [
+        "## Раздел 1. Карта темы и связь с ЛР03/ЛР04",
+        "## Раздел 2. Что такое вероятность модели и зачем нужна калибровка",
+        "## Раздел 3. Калибровка и ранжирование: в чем разница",
+        "## Раздел 4. Метрики вероятностей: Brier, LogLoss, ECE",
+        "## Раздел 5. Методы калибровки: Platt scaling и isotonic regression",
+        "## Раздел 6. Диаграмма надежности и разрыв калибровки",
+        "## Раздел 7. Выбор порога как задача решения",
+        "## Раздел 8. Сегментный аудит правила решения",
+        "## Раздел 9. Типичные ошибки и как их избежать",
+        "## Раздел 10. Проверь себя",
+    ],
+    "required_template_markers": [
+        "### Идея",
+        "### Формула",
+        "### Мини-пример",
+        "### Как читать результат/график",
+        "### Где это в практическом ноутбуке",
+    ],
+    "min_section_count": 10,
+    "min_plot_marker_count": 3,
+}
+
 BANNED_MARKDOWN_WORDS = [
     "strictly",
     "trade-off",
@@ -168,22 +196,26 @@ EXPECTED_COLUMNS["segment_policy_audit.csv"] = set(lab.SEGMENT_POLICY_AUDIT_COLU
 
 
 def run_solution_notebooks() -> None:
-    for notebook_path in NOTEBOOKS_TO_EXECUTE:
-        subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "jupyter",
-                "nbconvert",
-                "--to",
-                "notebook",
-                "--execute",
-                "--inplace",
-                str(notebook_path.relative_to(BASE_DIR)),
-            ],
-            cwd=BASE_DIR,
-            check=True,
-        )
+    with tempfile.TemporaryDirectory(prefix="lab04_verify_") as temp_dir:
+        for notebook_path in NOTEBOOKS_TO_EXECUTE:
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "jupyter",
+                    "nbconvert",
+                    "--to",
+                    "notebook",
+                    "--execute",
+                    "--output",
+                    notebook_path.name,
+                    "--output-dir",
+                    temp_dir,
+                    str(notebook_path.relative_to(BASE_DIR)),
+                ],
+                cwd=BASE_DIR,
+                check=True,
+            )
 
 
 def load_output(name: str) -> pd.DataFrame:
@@ -296,6 +328,44 @@ def assert_workflow_identity() -> None:
             )
 
 
+def assert_theory_notebook() -> None:
+    if not THEORY_NOTEBOOK.exists():
+        raise AssertionError(f"Не найден теоретический ноутбук: {THEORY_NOTEBOOK}")
+
+    all_text, markdown_text, code_text = load_notebook_text(THEORY_NOTEBOOK)
+    notebook_name = THEORY_NOTEBOOK.relative_to(BASE_DIR)
+
+    for marker in THEORY_NOTEBOOK_RULES["required_markers"]:
+        if marker not in markdown_text:
+            raise AssertionError(f"{notebook_name} должен содержать раздел `{marker}`.")
+
+    section_count = markdown_text.count("## Раздел")
+    if section_count < THEORY_NOTEBOOK_RULES["min_section_count"]:
+        raise AssertionError(
+            f"{notebook_name} должен содержать минимум {THEORY_NOTEBOOK_RULES['min_section_count']} разделов."
+        )
+
+    for marker in THEORY_NOTEBOOK_RULES["required_template_markers"]:
+        if marker not in markdown_text:
+            raise AssertionError(f"{notebook_name} должен содержать шаблонный блок `{marker}`.")
+
+    plot_hits = sum(1 for marker in EXPECTED_PLOT_MARKERS if marker in code_text)
+    if plot_hits < THEORY_NOTEBOOK_RULES["min_plot_marker_count"]:
+        raise AssertionError(
+            f"{notebook_name} должен содержать обязательные графики и маркеры визуализации."
+        )
+
+    lower_markdown = markdown_text.lower()
+    for word in BANNED_MARKDOWN_WORDS:
+        if word in lower_markdown:
+            raise AssertionError(
+                f"{notebook_name} содержит нежелательное слово `{word}` в markdown."
+            )
+
+    if "TODO(обязательно)" in all_text:
+        raise AssertionError(f"{notebook_name} не должен содержать TODO-блоки.")
+
+
 def assert_static_conditions() -> None:
     required_notes = [
         BASE_DIR / "study-notes/calibration-vs-discrimination.md",
@@ -311,6 +381,7 @@ def assert_static_conditions() -> None:
         assert_notebook_structure(notebook_path, rules)
 
     assert_workflow_identity()
+    assert_theory_notebook()
 
 
 def assert_output_invariants() -> None:
