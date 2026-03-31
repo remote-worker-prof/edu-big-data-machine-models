@@ -13,6 +13,7 @@ import importlib.util
 import json
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -164,22 +165,26 @@ NOTEBOOK_STRUCTURE_RULES = {
 
 
 def run_solution_notebooks() -> None:
-    for notebook_path in NOTEBOOKS:
-        subprocess.run(
-            [
-                sys.executable,
-                "-m",
-                "jupyter",
-                "nbconvert",
-                "--to",
-                "notebook",
-                "--execute",
-                "--inplace",
-                str(notebook_path.relative_to(BASE_DIR)),
-            ],
-            cwd=BASE_DIR,
-            check=True,
-        )
+    with tempfile.TemporaryDirectory(prefix="lab03_verify_") as temp_dir:
+        for notebook_path in NOTEBOOKS:
+            subprocess.run(
+                [
+                    sys.executable,
+                    "-m",
+                    "jupyter",
+                    "nbconvert",
+                    "--to",
+                    "notebook",
+                    "--execute",
+                    "--output",
+                    notebook_path.name,
+                    "--output-dir",
+                    temp_dir,
+                    str(notebook_path.relative_to(BASE_DIR)),
+                ],
+                cwd=BASE_DIR,
+                check=True,
+            )
 
 
 def assert_static_conditions() -> None:
