@@ -8,6 +8,8 @@
 - `02-model-interpretability-and-explainability/` — ЛР 02: интерпретация и объяснение моделей.
 - `03-overfitting-validation-and-hyperparameter-tuning/` — ЛР 03: переобучение, validation и честный подбор гиперпараметров.
   Внутри ЛР 03 есть отдельный maintainers smoke-check: `python 03-overfitting-validation-and-hyperparameter-tuning/scripts/verify_lab03.py`.
+- `04-calibration-threshold-and-decision-policy/` — ЛР 04: калибровка вероятностей, выбор порога и cost-sensitive policy.
+  Внутри ЛР 04 есть отдельный maintainers smoke-check: `python 04-calibration-threshold-and-decision-policy/scripts/verify_lab04.py`.
 - `.venv/` — единое локальное окружение Python для проекта (не коммитится).
 
 ## Текущая лабораторная
@@ -20,11 +22,8 @@
 Материалы ЛР 03 находятся в:
 - [03-overfitting-validation-and-hyperparameter-tuning/README.md](./03-overfitting-validation-and-hyperparameter-tuning/README.md)
 
-Внутри ЛР 01:
-- `notebooks/` — ноутбуки с TODO и обязательными самостоятельными блоками;
-- `solutions/` — решения только базового маршрута;
-- `study-notes/` — заметки и глоссарий по ходу выполнения;
-- `report-template.md` — шаблон отчета.
+Материалы ЛР 04 находятся в:
+- [04-calibration-threshold-and-decision-policy/README.md](./04-calibration-threshold-and-decision-policy/README.md)
 
 ## Быстрый старт
 ```bash

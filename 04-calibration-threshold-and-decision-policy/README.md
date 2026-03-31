@@ -1,0 +1,95 @@
+# Лабораторная работа 04: калибровка вероятностей и выбор порога под цену ошибок
+
+## О чем эта работа
+После ЛР 03 у нас уже есть выбранные модели и наборы признаков.
+Следующий шаг для новичка: научиться принимать решение не только по «красивой метрике», но и по цене ошибок.
+
+В этой ЛР вы:
+- сравните некалиброванные и калиброванные вероятности;
+- увидите, как калибровка влияет на вероятностные метрики;
+- подберете порог `threshold` по ожидаемой стоимости ошибок;
+- примените ограничение-страховку (guardrail) по полноте;
+- выполните одну финальную проверку на `test` для уже выбранного правила решения (policy).
+
+## Формат
+- 2 обязательных Jupyter-ноутбука.
+- Те же 2 бинарных набора данных: `medical`, `finance`.
+- Локальный запуск на CPU.
+- Стек: `pandas`, `numpy`, `scikit-learn`, `matplotlib`, `seaborn`.
+- В каждом ноутбуке обязательны графики и короткая математическая опора.
+
+## Зависимости от ЛР 03
+Входной контракт:
+- `../03-overfitting-validation-and-hyperparameter-tuning/outputs/baseline_vs_tuned_test_results.csv`
+
+Этот файл задает стартовую гипотезу `dataset -> model + feature_set` для ЛР 04.
+
+## Контракт по данным
+- `train`: обучение модели и калибровки;
+- `validation`: выбор варианта калибровки и порога;
+- `test`: одна финальная проверка только в ноутбуке 2 после выбора правила решения.
+
+## Структура папки
+- `notebooks/` — версии для студентов в формате Guided Fill (`TODO(обязательно)`).
+- `solutions/` — версии с полным решением.
+- `outputs/` — CSV-артефакты ЛР 04.
+- `study-notes/` — заметки и глоссарий.
+- `report-template.md` — шаблон итогового отчета.
+- `lab_utils.py` — общие утилиты.
+- `scripts/verify_lab04.py` — внутренний скрипт быстрой проверки.
+- `tests/` — юнит-тесты `lab_utils.py`.
+
+## Порядок прохождения
+1. `notebooks/01_calibration_basics_todo.ipynb`
+- сравнение `uncalibrated`, `calibrated_sigmoid`, `calibrated_isotonic`;
+- расчет `brier`, `log_loss`, `roc_auc`, `pr_auc`, `ece` на `validation`;
+- reliability-анализ и обязательные графики;
+- выбор `calibrated_best`.
+2. `notebooks/02_threshold_policy_todo.ipynb`
+- базовая модель стоимости ошибок `FP=1`, `FN=5`;
+- перебор порога на `validation`;
+- выбор правила решения по `min expected_cost` при `recall >= 0.60`;
+- одна финальная проверка на `test` и сегментный аудит.
+
+## Контракты артефактов
+`calibration_audit.csv`:
+- `dataset`, `model`, `variant`, `split`
+- `brier`, `log_loss`, `roc_auc`, `pr_auc`, `ece`
+- для ЛР 04: `split` только `validation`
+
+`threshold_policy_grid.csv`:
+- `dataset`, `model`, `variant`, `threshold`
+- `precision`, `recall`, `f1`, `fp_rate`, `fn_rate`, `expected_cost`
+
+`policy_test_report.csv`:
+- `dataset`, `model`, `variant`, `policy_name`, `threshold`
+- `accuracy`, `f1`, `roc_auc`, `pr_auc`, `expected_cost`, `cost_per_100`
+
+`segment_policy_audit.csv`:
+- `dataset`, `segment_feature`, `segment`, `n`
+- `fp_rate`, `fn_rate`, `expected_cost_per_100`
+
+## Что обязательно сделать студенту
+- заполнить блоки `TODO(обязательно)` в обоих ноутбуках;
+- сохранить все 4 CSV в `outputs/`;
+- обновить `study-notes/glossary.md`;
+- добавить минимум 1 заметку в `study-notes/*.md` со ссылками на источники.
+
+## Запуск
+Команды выполняются из папки `04-calibration-threshold-and-decision-policy`.
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip
+python3 -m pip install -r requirements.txt
+python3 -m ipykernel install --user --name lab04-policy --display-name "Python (.venv) Lab 04"
+jupyter notebook
+```
+
+## Проверка для преподавателя
+```bash
+python scripts/verify_lab04.py
+```
+
+Скрипт выполняет оба `solution`-ноутбука и проверяет структуру, графики, контракт по данным и CSV-артефакты.
