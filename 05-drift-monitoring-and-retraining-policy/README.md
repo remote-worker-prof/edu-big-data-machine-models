@@ -108,11 +108,19 @@ python3 -m ipykernel install --user --name lab05-monitoring --display-name "Pyth
 jupyter notebook 05-drift-monitoring-and-retraining-policy
 ```
 
-## Проверки перед публикацией
+## Быстрая проверка (для студента)
+Из папки ЛР05:
+
 ```bash
-python3 05-drift-monitoring-and-retraining-policy/scripts/verify_lab05.py
+python3 scripts/verify_lab05.py
+```
+
+Если скрипт завершился с `Lab 05 smoke-check passed.`, работа оформлена корректно.
+
+## Расширенные проверки (для преподавателя/автора курса)
+Из корня репозитория при подготовке к публикации:
+
+```bash
 python3 -m unittest 05-drift-monitoring-and-retraining-policy/tests/test_lab_utils.py
 python3 scripts/verify_notebook_comment_style.py
 ```
-
-Все три проверки должны завершаться без ошибок.
