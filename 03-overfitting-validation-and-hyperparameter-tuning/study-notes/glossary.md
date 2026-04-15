@@ -25,6 +25,7 @@
 
 | Термин | Простое объяснение своими словами | Где встретился в ЛР | Источник |
 |---|---|---|---|
-|  |  |  |  |
-|  |  |  |  |
-|  |  |  |  |
+| `overfitting` | Модель слишком подстроилась под train и теряет качество на новых данных. | Notebook 1, сравнение train vs validation. | ISLR (2nd ed.), chapter on model assessment. |
+| `generalization gap` | Разница между метрикой на train и validation; сигнал стабильности или переобучения. | Notebook 1, таблица `generalization_audit.csv`. | Логика эксперимента ЛР 03 + ISLR. |
+| `GridSearchCV` | Полный перебор сетки гиперпараметров с кросс-валидацией на train-части. | Notebook 2, подбор tuned-конфигураций. | scikit-learn User Guide: GridSearchCV. |
+| `data leakage` | Утечка информации из validation/test в обучение, из-за чего метрики выглядят лучше реальности. | Notebook 2, требования к честному workflow. | scikit-learn common pitfalls + notes `validation-reuse-vs-nested-cv.md`. |

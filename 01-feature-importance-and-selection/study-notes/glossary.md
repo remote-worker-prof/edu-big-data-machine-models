@@ -10,7 +10,7 @@
 
 | Термин | Простое объяснение своими словами | Где встретился в ЛР | Источник |
 |---|---|---|---|
-|  |  |  |  |
-|  |  |  |  |
-|  |  |  |  |
-
+| `VarianceThreshold` | Удаляет признаки почти без разброса, которые обычно не помогают модели различать классы. | Notebook 1, шаг `Filter-методы`. | scikit-learn User Guide: Feature selection. |
+| `mutual_info_classif` | Оценивает, насколько признак связан с таргетом, даже если связь нелинейная. | Notebook 1, сравнение filter-методов. | scikit-learn API: `mutual_info_classif`. |
+| `RFE` | Итерируется по признакам и постепенно убирает наименее полезные по мнению модели. | Notebook 2, wrapper-подходы. | scikit-learn API: `RFE`. |
+| `Permutation Importance` | Смотрит, насколько портится метрика, если случайно перемешать один признак. | Notebook 2 и 3, embedded/permutation анализ. | scikit-learn User Guide: permutation importance. |

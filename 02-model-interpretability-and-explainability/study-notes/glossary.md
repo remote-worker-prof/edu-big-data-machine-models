@@ -10,6 +10,7 @@
 
 | Термин | Простое объяснение своими словами | Где встретился в ЛР | Источник |
 |---|---|---|---|
-|  |  |  |  |
-|  |  |  |  |
-|  |  |  |  |
+| `Global importance` | Общая картина того, какие признаки в среднем сильнее влияют на решение модели. | Notebook 1, раздел глобальных объяснений. | Interpretable ML (Molnar), chapter on feature importance. |
+| `Partial Dependence` | Показ, как меняется средний score модели при изменении одного признака. | Notebook 1, раздел `Partial Dependence`. | scikit-learn User Guide: Partial Dependence and ICE. |
+| `False Positive` | Ошибка, когда модель сказала `1`, но в реальности класс `0`. | Notebook 2, локальный разбор ошибок. | scikit-learn Guide: classification metrics. |
+| `Perturbation analysis` | Локальное объяснение через замену одного признака на референсное значение и пересчет score. | Notebook 2, `error_case_explanations`. | Логика из `lab_utils.py` ЛР 02 + материалы по local explanations. |
