@@ -122,6 +122,9 @@ python -m pip install --upgrade pip
 ## Единый Rubric Отчетов
 - Шаблон rubric для ЛР 01-05: [RUBRIC_TEMPLATE.md](./RUBRIC_TEMPLATE.md)
 
+## Лекционный Long-Read
+- Подробный академический конспект для лекционного показа (ЛР 01-05, 90 минут): [LECTURE_LONGREAD_01_05.md](./LECTURE_LONGREAD_01_05.md)
+
 ## Git-политика
 - Generated outputs (`outputs/*.csv`, `outputs/*.json`) не добавляются в git.
 - В репозиторий идут исходные данные, код, ноутбуки и документация.
