@@ -1,0 +1,31 @@
+name: Quality Gate
+
+on:
+  push:
+    branches:
+      - "**"
+  pull_request:
+
+jobs:
+  verify-all-labs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies for all labs
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r 01-feature-importance-and-selection/requirements.txt
+          python -m pip install -r 02-model-interpretability-and-explainability/requirements.txt
+          python -m pip install -r 03-overfitting-validation-and-hyperparameter-tuning/requirements.txt
+          python -m pip install -r 04-calibration-threshold-and-decision-policy/requirements.txt
+          python -m pip install -r 05-drift-monitoring-and-retraining-policy/requirements.txt
+
+      - name: Run unified QA gate
+        run: python scripts/verify_all_labs.py
