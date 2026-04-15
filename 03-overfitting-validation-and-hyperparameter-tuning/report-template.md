@@ -1,5 +1,8 @@
 # Шаблон отчета по ЛР 03: Overfitting, Validation and Honest Hyperparameter Tuning
 
+Оценивание выполняется по единому rubric: `../RUBRIC_TEMPLATE.md`.
+
+
 ## 1. Контекст
 - ФИО автора работы:
 - Группа:

@@ -34,6 +34,17 @@
 
 Если ЛР 01 уже была пройдена в текущем репозитории, ноутбуки подхватят этот файл автоматически.
 
+## Вход Для Новичка (Перед Практикой)
+- Что уже нужно знать:
+  - базовое разделение `train/validation/test`;
+  - что означает переобучение и почему train-метрика может быть оптимистичной;
+  - как читать таблицу с метриками.
+- Что можно пропустить на первом проходе:
+  - nested CV и сложные схемы model selection;
+  - расширенный анализ устойчивости при разных seeds.
+- Какие артефакты должны лежать на диске:
+  - `../01-feature-importance-and-selection/outputs/feature_sets_wrapper_embedded.json`.
+
 ## Data Usage Contract
 В этой ЛР важно не только запустить код, но и честно разделить роли частей данных:
 - `train`: fit baseline-моделей, validation curves и `GridSearchCV`;
@@ -148,12 +159,13 @@
 
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install --upgrade pip
-python3 -m pip install -r requirements.txt
-python3 -m ipykernel install --user --name lab03-overfitting --display-name "Python (.venv) Lab 03"
-jupyter notebook
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m ipykernel install --user --name lab03-overfitting --display-name "Python (.venv) Lab 03"
+.venv/bin/python -m jupyter notebook
 ```
+
+Опционально можно использовать `source .venv/bin/activate` и запускать команды через `python`.
 
 ## Рекомендуемый маршрут выполнения
 1. В первом ноутбуке сравнить `full` и все candidate feature set на `train` и `validation`.
@@ -205,13 +217,35 @@ jupyter notebook
 После настройки окружения можно прогнать полный smoke-check ЛР:
 
 ```bash
-python scripts/verify_lab03.py
+.venv/bin/python scripts/verify_lab03.py
 ```
 
 Скрипт выполняет оба `solution`-ноутбука и проверяет контракты всех обязательных CSV-артефактов.
 
-## Расширения на 1-2 дня
-- добавить `LinearSVC` как третью модель и сравнить ее с базовыми двумя;
-- попробовать `RandomizedSearchCV` и сравнить его с полным `GridSearchCV`;
-- сравнить выбор гиперпараметров по `f1` против выбора по `roc_auc`;
-- проверить, как меняется итог при другом `random_state`.
+## Предсдача Для Студента
+```bash
+.venv/bin/python ../scripts/check_submission.py --lab 03
+```
+
+## Что Делать, Если Не Запускается
+1. Ошибка `ModuleNotFoundError`:
+   - выполните `.venv/bin/python -m pip install -r requirements.txt`.
+2. Ошибка `Не найден feature_sets_wrapper_embedded.json`:
+   - выполните `.venv/bin/python ../01-feature-importance-and-selection/scripts/verify_lab01.py`;
+   - или заново выполните export в ЛР01.
+3. Notebook 2 не стартует из-за отсутствующих файлов из notebook 1:
+   - выполните notebook 1 до export-ячейки;
+   - проверьте `outputs/generalization_audit.csv`, `outputs/model_feature_set_decisions.csv`, `outputs/validation_curve_results.csv`.
+4. Для полной диагностики среды из корня репозитория:
+   - `.venv/bin/python scripts/doctor_env.py`.
+
+## Траектории Прохождения
+- Легкий трек (минимально обязательный маршрут):
+  - пройти оба `todo`-ноутбука;
+  - сформировать 5 обязательных CSV;
+  - заполнить отчет и базовый глоссарий.
+- Углубленный трек:
+  - добавить `LinearSVC` как третью модель и сравнить ее с базовыми двумя;
+  - попробовать `RandomizedSearchCV` и сравнить его с полным `GridSearchCV`;
+  - сравнить выбор гиперпараметров по `f1` против выбора по `roc_auc`;
+  - проверить, как меняется итог при другом `random_state`.

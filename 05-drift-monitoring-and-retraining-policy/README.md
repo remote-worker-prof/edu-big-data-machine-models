@@ -101,26 +101,52 @@
 
 ```bash
 python3 -m venv .venv  # если окружение еще не создано
-source .venv/bin/activate
-python3 -m pip install --upgrade pip
-python3 -m pip install -r 05-drift-monitoring-and-retraining-policy/requirements.txt
-python3 -m ipykernel install --user --name lab05-monitoring --display-name "Python (.venv) Lab 05"
-jupyter notebook 05-drift-monitoring-and-retraining-policy
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -r 05-drift-monitoring-and-retraining-policy/requirements.txt
+.venv/bin/python -m ipykernel install --user --name lab05-monitoring --display-name "Python (.venv) Lab 05"
+.venv/bin/python -m jupyter notebook 05-drift-monitoring-and-retraining-policy
 ```
+
+Опционально можно использовать `source .venv/bin/activate` и запускать команды через `python`.
 
 ## Быстрая проверка (для студента)
 Из папки ЛР05:
 
 ```bash
-python3 scripts/verify_lab05.py
+.venv/bin/python scripts/verify_lab05.py
 ```
 
 Если скрипт завершился с `Lab 05 smoke-check passed.`, работа оформлена корректно.
+
+## Предсдача Для Студента
+```bash
+.venv/bin/python ../scripts/check_submission.py --lab 05
+```
 
 ## Расширенные проверки (для преподавателя/автора курса)
 Из корня репозитория при подготовке к публикации:
 
 ```bash
-python3 -m unittest 05-drift-monitoring-and-retraining-policy/tests/test_lab_utils.py
-python3 scripts/verify_notebook_comment_style.py
+.venv/bin/python -m unittest 05-drift-monitoring-and-retraining-policy/tests/test_lab_utils.py
+.venv/bin/python scripts/verify_notebook_comment_style.py
 ```
+
+## Что Делать, Если Не Запускается
+1. Ошибка `ModuleNotFoundError`:
+   - выполните `.venv/bin/python -m pip install -r 05-drift-monitoring-and-retraining-policy/requirements.txt`.
+2. Ошибка про отсутствие `medical_cardiovascular_risk.csv` или `finance_credit_risk.csv`:
+   - проверьте наличие файлов в `../01-feature-importance-and-selection/data/`.
+3. Запуск из неверной директории:
+   - команды ЛР05 выполняйте из папки `05-drift-monitoring-and-retraining-policy` или из корня с полным путем.
+4. Для полной диагностики среды из корня репозитория:
+   - `.venv/bin/python scripts/doctor_env.py`.
+
+## Траектории Прохождения
+- Легкий трек (минимально обязательный маршрут):
+  - пройти теоретический ноутбук и два `todo`-ноутбука;
+  - сформировать 4 обязательных CSV;
+  - заполнить отчет простыми объяснениями решения `observe/retrain`.
+- Углубленный трек:
+  - протестировать альтернативные policy-пороги и сравнить итоговые решения;
+  - добавить дополнительные monitoring-сценарии и оценить устойчивость policy;
+  - расширить анализ post-retrain сравнением нескольких model variants.

@@ -1,5 +1,8 @@
 # Шаблон отчета по ЛР 02: Model Interpretability and Explainability
 
+Оценивание выполняется по единому rubric: `../RUBRIC_TEMPLATE.md`.
+
+
 ## 1. Контекст
 - ФИО автора работы:
 - Группа:

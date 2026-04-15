@@ -1,5 +1,8 @@
 # Шаблон отчета по ЛР 01: Feature Importance and Selection
 
+Оценивание выполняется по единому rubric: `../RUBRIC_TEMPLATE.md`.
+
+
 ## 1. Контекст
 - ФИО автора работы:
 - Группа:

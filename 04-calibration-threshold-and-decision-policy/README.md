@@ -84,16 +84,43 @@
 
 ```bash
 python3 -m venv .venv
-source .venv/bin/activate
-python3 -m pip install --upgrade pip
-python3 -m pip install -r requirements.txt
-python3 -m ipykernel install --user --name lab04-policy --display-name "Python (.venv) Lab 04"
-jupyter notebook
+.venv/bin/python -m pip install --upgrade pip
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m ipykernel install --user --name lab04-policy --display-name "Python (.venv) Lab 04"
+.venv/bin/python -m jupyter notebook
 ```
+
+Опционально можно использовать `source .venv/bin/activate` и запускать команды через `python`.
 
 ## Проверка для преподавателя
 ```bash
-python scripts/verify_lab04.py
+.venv/bin/python scripts/verify_lab04.py
 ```
 
 Скрипт выполняет оба `solution`-ноутбука, проверяет теоретический ноутбук, структуру практики, графики, контракт по данным и CSV-артефакты.
+
+## Предсдача Для Студента
+```bash
+.venv/bin/python ../scripts/check_submission.py --lab 04
+```
+
+## Что Делать, Если Не Запускается
+1. Ошибка `ModuleNotFoundError`:
+   - выполните `.venv/bin/python -m pip install -r requirements.txt`.
+2. Ошибка про отсутствующий `baseline_vs_tuned_test_results.csv`:
+   - выполните `.venv/bin/python ../03-overfitting-validation-and-hyperparameter-tuning/scripts/verify_lab03.py`;
+   - или заново выполните export в ЛР03.
+3. Ошибка про отсутствующий `feature_sets_wrapper_embedded.json`:
+   - выполните `.venv/bin/python ../01-feature-importance-and-selection/scripts/verify_lab01.py`.
+4. Для полной диагностики среды из корня репозитория:
+   - `.venv/bin/python scripts/doctor_env.py`.
+
+## Траектории Прохождения
+- Легкий трек (минимально обязательный маршрут):
+  - пройти теоретический ноутбук и два `todo`-ноутбука;
+  - сформировать 4 обязательных CSV;
+  - заполнить отчет и глоссарий.
+- Углубленный трек:
+  - сравнить разные наборы cost-коэффициентов (`FP/FN`) и их влияние на policy;
+  - добавить альтернативные guardrail-ограничения и сравнить последствия;
+  - провести расширенный сегментный аудит с дополнительными признаками сегментации.
